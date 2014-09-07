@@ -48,6 +48,12 @@ Notice that by default all key/values are evaluated into the relevant key/value 
 
 In the above example we also demonstrate nesting an Array and an Object within an Array.
 
+## Understanding CloudFormation
+
+CloudFormation is easy to write but difficult to understand and to memorise. The best way to use CloudFormation is to read the AWS documentation and to write your requirements from scratch, otherwise you'll find that by copy-and-pasting from existing CloudFormation can cause confusion and mis-understanding.
+
+There are also AWS functions provided that allow us to inject data dynamically into our CloudFormation document.These include getting attributes (such as the ARN) from a Resource. For a full list of functions see [the AWS reference](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference.html)
+
 ## Convert YAML into JSON
 
 ```sh
