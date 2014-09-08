@@ -1,0 +1,371 @@
+# The only required property in a CloudFormation document is Resources
+# Everything else is optional
+
+Description: "Example EC2 Set-up with S3 and SQS, plus CloudWatch AutoScaling"
+
+# Paramaters are referenced using the Ref property
+# e.g. Ref: "CPUAlarmLowThreshold"
+#
+# Parameters can be assigned a default value, but if not then the value
+# needs to be provided when uploading the CloudFormation.
+# If uploading via CLI then you'll provide a --parameters flag
+# If uploading via the AWS console, a GUI will be provided
+Parameters:
+  CPUAlarmLowThreshold:
+    Default: 20
+    Type: "String"
+    Description: "This is the metric on which the alarm is activated.  Our metric is percentage of CPU usage that will trigger the scaling group"
+
+  CPUAlarmLowEvalPeriods:
+    Default: 20
+    Type: "String"
+    Description: "This is how many times the metric is checked during the alarm period"
+
+  AlarmPeriod:
+    Default: 600
+    Type: "String"
+    Description: "The length of time that the eval periods will check within, E.g 600 seconds / 10 evals = checking every 60 seconds for 600 seconds"
+
+  UpdatePauseTime:
+    Default: "PT0S"
+    Type: "String"
+    Description: "The time to wait between new instances coming online and the next batch being killed during an ASG update"
+
+  UpdateMaxBatchSize:
+    Default: 1
+    Type: "String"
+    Description: "The maximum number of instances to be killed at one time during an ASG update"
+
+  UpdateMinInService:
+    Default: 0
+    Type: "String"
+    Description: "The minimum number of instances in service during an ASG update"
+
+  MinSize:
+    Default: 0
+    Type: "String"
+    Description: "The minimum number of instances"
+
+  MaxSize:
+    Default: 1
+    Type: "String"
+    Description: "The maximum number of instances"
+
+  S3BucketBasePath:
+    Default: "/foobar"
+    Type: "String"
+
+  S3BucketArn:
+    Default: "arn:aws:s3:::foobucket-sl9vplg1o48d"
+    Type: "String"
+
+  VisibilityTimeout:
+    Default: "21600"
+    Type: "String"
+    Description: "The length of time during which the queue will be unavailable once a message is delivered from the queue"
+
+  InstanceType:
+    Default: "m3.xlarge"
+    Type: "String"
+    Description: "The size of the instances"
+
+  MaxCount:
+    Default: "1"
+    Type: "String"
+    Description: "The maximum number of times a message can be received before it is sent to the Dead Letter Queue"
+
+# Mappings allow us to map a key to a corresponding set of named values
+# So if our instance is brought up in the eu-west-1 region we can use
+# AWS::Region to tell us the current zone and then use the intrinsic function
+# Fn::FindInMap to return the relevant matched value
+Mappings:
+  RegionMap:
+    eu-west-1:
+      AMI:
+        - "ami-47cefa33"
+
+# When pushing this CloudFormation we need to provide the public half of our key-pair
+# See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
+#
+# Then when attempting to SSH into the instance we can provide the private half
+# See https://gist.github.com/Integralist/438898d6164daebec0c9
+Resources:
+  ComponentLaunchConfiguration:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      KeyName:
+        Ref: "KeyName"
+      SecurityGroups:
+        Ref: "InstanceSecurityGroup"
+      InstanceType:
+        Ref: "InstanceType"
+      IamInstanceProfile:
+        Ref: "ComponentInstanceProfile"
+      ImageId:
+        Fn::FindInMap:
+          - "RegionMap"
+          - Ref: "AWS::Region"
+          - "AMI"
+
+  # We're allowing any ip address to access port 22 and 3000
+  InstanceSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable SSH access via port 22"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+
+  EC2ComponentPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "EC2ComponentPolicy"
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "cloudwatch:*"
+            Resource:
+              - "*"
+            Effect:
+              - "Allow"
+          - Action:
+              - "cloudformation:Describe*"
+            Resource:
+              - "*"
+            Effect:
+              - "Allow"
+          - Action:
+              - "ec2:Describe*"
+            Resource:
+              - "*"
+            Effect:
+              - "Allow"
+      Roles:
+        Ref: "FooRole"
+
+  ComponentInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        - Ref: "FooRole"
+
+  FooRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+
+  ComponentAutoScalingGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        PauseTime:
+          Ref: "UpdatePauseTime"
+        MaxBatchSize:
+          Ref: "UpdateMaxBatchSize"
+        MinInstancesInService:
+          Ref: "UpdateMinInService"
+    Properties:
+      Tags:
+        - Value: "Foo Project"
+          PropagateAtLaunch: true
+          Key: "FooKeyProject"
+        - Value: "Bar Application"
+          PropagateAtLaunch: true
+          Key: "BarKeyComponent"
+      MinSize:
+        Ref: "MinSize"
+      MaxSize:
+        Ref: "MaxSize"
+      LaunchConfigurationName:
+        Ref: "ComponentLaunchConfiguration"
+      AvailabilityZones:
+        - "eu-west-1a"
+        - "eu-west-1b"
+        - "eu-west-1c"
+
+  ComponentScaleUpPolicy:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      ScalingAdjustment: 1
+      AutoScalingGroupName:
+        Ref: "ComponentAutoScalingGroup"
+      Cooldown: 240
+      AdjustmentType: ChangeInCapacity
+
+  ComponentScaleDownPolicy:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      ScalingAdjustment: -1
+      AutoScalingGroupName:
+        Ref: "ComponentAutoScalingGroup"
+      Cooldown: 60
+      AdjustmentType: ChangeInCapacity
+
+  CPUAlarmLow:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      EvaluationPeriods:
+        Ref: "CPUAlarmLowEvalPeriods"
+      Dimensions:
+        - Name: "AutoScalingGroupName"
+          Value:
+            Ref: "ComponentAutoScalingGroup"
+      AlarmActions:
+        - Ref: "ComponentScaleDownPolicy"
+      AlarmDescription: "Scale-down if CPU < 20% for 10 minutes"
+      Namespace: "AWS/EC2"
+      Period:
+        Ref: "AlarmPeriod"
+      ComparisonOperator: "LessThanThreshold"
+      Statistic: "Average"
+      Threshold:
+        Ref: "CPUAlarmLowThreshold"
+      MetricName: "CPUUtilization"
+
+  SQSJmeterQueue:
+    Type: "AWS::SQS::Queue"
+    Properties:
+      VisibilityTimeout:
+        Ref: "VisibilityTimeout"
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - "SQSJmeterDeadLetterQueue"
+            - "Arn"
+        maxReceiveCount:
+          Ref: "MaxCount"
+      MessageRetentionPeriod: 86400
+
+  SQSJmeterDeadLetterQueue:
+    Type: "AWS::SQS::Queue"
+    Properties:
+      MessageRetentionPeriod: 432000
+
+  SQSJmeterQueuePolicy:
+    Type: "AWS::SQS::QueuePolicy"
+    Properties:
+      Queues:
+        - Ref: "SQSJmeterQueue"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Id: "SQSJmeterQueuePolicy"
+        Statement:
+          - Resource:
+              - Fn::GetAtt:
+                  - "SQSJmeterQueue"
+                  - "Arn"
+            Effect: "Allow"
+            Sid: "Allow-User-SendMessage"
+            Action:
+              - "sqs:*"
+            Condition:
+              IpAddress:
+                aws:SourceIp:
+                  - "135.185.0.0/32"
+                  - "212.58.224.0/19"
+                  - "212.58.231.0/19"
+                  - "54.217.70.105"
+            Principal:
+              AWS: "*"
+
+  SQSAvailableHigh:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      EvaluationPeriods: 1
+      Dimensions:
+        - Name: "QueueName"
+          Value:
+            Fn::GetAtt:
+              - "SQSJmeterQueue"
+              - "QueueName"
+      AlarmActions:
+        - Ref: "ComponentScaleUpPolicy"
+      AlarmDescription: "Scale-up if SQS available messages is > 0 for 5 minutes"
+      Namespace: "AWS/SQS"
+      Period: 300
+      ComparisonOperator: "GreaterThanThreshold"
+      Statistic: "Average"
+      Threshold: 0
+      MetricName: "ApproximateNumberOfMessagesVisible"
+
+  QueuesPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "QueuesPolicy"
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "sqs:*"
+            Resource:
+              - Fn::GetAtt:
+                  - "SQSJmeterQueue"
+                  - "Arn"
+            Effect: "Allow"
+      Role:
+        - Ref: "FooRole"
+
+  StoragePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "StoragePolicy"
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "s3:*"
+            Resource:
+              - Ref: "S3BucketArn"
+            Effect: "Allow"
+          - Action:
+              - "s3:*"
+            Resource:
+              - Fn::Join:
+                  - ""
+                  -
+                    - Ref: "S3BucketArn"
+                    - Ref: "S3BucketBasePath"
+                    - "/*"
+            Effect: "Allow"
+          - Action:
+              - "sts:AssumeRole"
+            Resource:
+              - "*"
+            Effect: "Allow"
+          - Action:
+              - "s3:*"
+            Resource:
+              - Fn::Join:
+                  - ""
+                  -
+                    - Ref: "S3BucketArn"
+                    - Ref: "S3BucketBasePath"
+                    - "/logs/*"
+            Effect: "Allow"
+      Role:
+        - Ref: "FooRole"
+
+# The optional Outputs section declares the values that you want to return
+# in response to describe stack calls.
+# This output appears in the AWS console
+Outputs:
+  WebsiteURL:
+    Description: "Our Website URL"
+    Value:
+      Fn::Join:
+        - ""
+        -
+          - "http://"
+          - Fn::GetAtt:
+              - "Ec2Instance"
+              - "PublicIp"
+          - ":3000"
