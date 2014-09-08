@@ -1,0 +1,131 @@
+# The only required property in a CloudFormation document is Resources
+# Everything else is optional
+
+Description: "Example EC2 Set-up"
+
+# Paramaters are referenced using the Ref property
+# e.g. Ref: "KeyName"
+#
+# Parameters can be assigned a default value, but if not then the value
+# needs to be provided when uploading the CloudFormation.
+# If uploading via CLI then you'll provide a --parameters flag
+# If uploading via the AWS console, a GUI will be provided
+Parameters:
+  KeyName:
+    Description: "Name of an existing EC2 KeyPair to enable SSH access to the instance"
+    Type: "String"
+
+# Mappings allow us to map a key to a corresponding set of named values
+# So if our instance is brought up in the eu-west-1 region we can use
+# AWS::Region to tell us the current zone and then use the intrinsic function
+# Fn::FindInMap to return the relevant matched value
+Mappings:
+  RegionMap:
+    eu-west-1:
+      AMI:
+        - "ami-47cefa33"
+
+# When pushing this CloudFormation we need to provide the public half of our key-pair
+# See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
+#
+# Then when attempting to SSH into the instance we can provide the private half
+# See https://gist.github.com/Integralist/438898d6164daebec0c9
+Resources:
+  Ec2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      KeyName:
+        Ref: "KeyName"
+      SecurityGroups:
+        - Ref: "InstanceSecurityGroup"
+
+      # Select the correct AMI to load (based on the region the stack is created)
+      ImageId:
+        Fn::FindInMap:
+          - "RegionMap"
+          - Ref: "AWS::Region"
+          - "AMI"
+
+      # Amazon's Linux AMI comes with a Ubuntu package called cloud-init installed
+      # This package simplifies running bootstrapping code on the EC2 instance
+      #
+      # We use the Fn::Base64 function to base64 encode the user data and to
+      # allow parameters and references from the template to be substituted
+      # in the script at runtime
+      #
+      # We also use a curl command to indicate to our WaitCondition resource
+      # that the application has started successfully.
+      # The stack creation will fail if the WaitCondition timeout is triggered.
+      # The timeout is cancelled by the signal of the curl command
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            -
+              - "#!/bin/bash -ex"
+              - "\n"
+              - "yum -y install foo"
+              - "\n"
+              - "cd bar && baz"
+              - "\n"
+              - "curl -X PUT -H 'Content-Type:' --data-binary '{\"Status\" : \"SUCCESS\","
+              - "\"Reason\" : \"The application myapp is ready\","
+              - "\"UniqueId\" : \"myapp\","
+              - "\"Data\" : \"Done\"}' "
+              - "\""
+              - Ref: "WaitForInstanceWaitHandle"
+              - "\"\n"
+
+  # We're allowing any ip address to access port 22 and 3000
+  InstanceSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable Access to our application via port 3000 and SSH access via port 22"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: "3000"
+          ToPort: "3000"
+          CidrIp: "0.0.0.0/0"
+
+  # The following key has no properties.
+  # I know that seems odd but there is a reason:
+  #
+  # When you reference the WaitConditionHandle resource
+  # (see WaitForInstance below and the curl command above),
+  # AWS CloudFormation will return a presigned URL.
+  #
+  # You then pass this URL to applications or scripts that are running on your
+  # Amazon EC2 instances to send signals to that URL
+  WaitForInstanceWaitHandle:
+    Type: "AWS::CloudFormation::WaitConditionHandle"
+    Properties: {}
+
+  # Our WaitCondition depends on the EC2 instance being booted-up first
+  # And then we give the application 600 seconds (10 minutes) to indicate it's running
+  WaitForInstance:
+    Type: "AWS::CloudFormation::WaitCondition"
+    DependsOn: "Ec2Instance"
+    Properties:
+      Handle:
+        Ref: "WaitForInstanceWaitHandle"
+      Timeout: "600"
+
+# The optional Outputs section declares the values that you want to return
+# in response to describe stack calls.
+# This output appears in the AWS console
+Outputs:
+  WebsiteURL:
+    Description: "Our Website URL"
+    Value:
+      Fn::Join:
+        - ""
+        -
+          - "http://"
+          - Fn::GetAtt:
+              - "Ec2Instance"
+              - "PublicIp"
+          - ":3000"
