@@ -142,9 +142,22 @@ Resources:
               - "*"
             Effect:
               - "Allow"
+
+      # If an application runs on an Amazon EC2 instance and needs to make
+      # requests for AWS resources such as Amazon S3 buckets or an DynamoDB table,
+      # it must have security credentials. It isn't a good practice to embed or
+      # pass IAM user credentials to each instance; distributing long-term
+      # credentials to each instance is challenging to manage and a potential
+      # security risk. A better strategy is to create a role that is used when
+      # the Amazon EC2 instance is launched. An application can then get
+      # temporary security credentials from the Amazon EC2 instance
       Roles:
         Ref: "FooRole"
 
+  # An instance profile is a container for an IAM role. Instance profiles are
+  # used to pass role information to an Amazon EC2 instance when the instance
+  # starts. An instance profile can contain only one role. However, a role can
+  # be included in multiple instance profiles.
   ComponentInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
@@ -156,6 +169,13 @@ Resources:
     Type: "AWS::IAM::Role"
     Properties:
       Path: "/"
+      # A user in one account (the trusted account) can assume a role in another
+      # account (the trusting account). To assume a role, a user (or an
+      # application that the user is running) calls the AWS STS AssumeRole API.
+      # Before the user can assume a role, in the trusting account an
+      # administrator must configure the role to assume. In addition, in the
+      # trusted account, the user must be given permissions to call the
+      # AssumeRole API.
       AssumeRolePolicyDocument:
         Statement:
           - Action:
