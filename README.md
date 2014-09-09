@@ -71,7 +71,21 @@ ruby \
 ruby -rjson -ryaml -e "puts JSON.generate(YAML.load_file('EC2.yml'))" | json_pp
 ```
 
-## Yaml Features
+## YAML Features
+
+YAML provides a couple of features to help reduce complexity and duplication.
+
+To reduce complexity, YAML will allow values to not be quoted. What this means 
+is that YAML will intelligently recognise the data type of your content. So if 
+you write `123` then it'll interpret this as an integer, but if you write `abc` 
+then it'll interpret that as a String. But there is one item worth noting: if 
+you write `Yes` then YAML will interpret that as `true`. If you really mean `Yes` 
+to be a String then either write it as `"Yes"` (i.e. quoted) or use YAML's 
+explicit data typing feature: `!!str Yes` (which is ugly, so best use quotes).
+
+To reduce duplication, YAML provides an "anchor" (`&`) which let's us tag a key 
+and to then "reference" (`*`) that tag later on in our document. We demonstrate 
+this in the below YAML example file (and in the JSON conversion after it).
 
 ```yaml
 my_json:
