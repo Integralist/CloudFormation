@@ -150,7 +150,14 @@ Resources:
       # credentials to each instance is challenging to manage and a potential
       # security risk. A better strategy is to create a role that is used when
       # the Amazon EC2 instance is launched. An application can then get
-      # temporary security credentials from the Amazon EC2 instance
+      # temporary security credentials from the Amazon EC2 instance.
+      # These temporary security credentials are auto-rotated before they expire,
+      # and the AWS SDK automatically tries to utilise them if no other credentials
+      # are provided. Note: the credentials are deployed regularly to the
+      # EC2 instance metadata service
+      #
+      # See the following AWS Ruby Blog post that demonstrates this manually
+      # http://ruby.awsblog.com/post/TxP3XGEX8F3SHX/IAM-Roles-for-Amazon-EC2-Instances-Credential-Management-Part-4
       Roles:
         Ref: "FooRole"
 
