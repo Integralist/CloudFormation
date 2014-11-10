@@ -71,6 +71,12 @@ ruby \
 ruby -rjson -ryaml -e "puts JSON.generate(YAML.load_file('EC2.yml'))" | json_pp
 ```
 
+...or an alternative...
+
+```sh
+cat EC2.yml | ruby -rjson -ryaml -e "puts YAML.load(STDIN.read).to_json" | json_pp
+```
+
 ## YAML Features
 
 YAML provides a couple of features to help reduce complexity and duplication.
