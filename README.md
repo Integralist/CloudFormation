@@ -93,6 +93,8 @@ To reduce duplication, YAML provides an "anchor" (`&`) which let's us tag a key
 and to then "reference" (`*`) that tag later on in our document. We demonstrate 
 this in the below YAML example file (and in the JSON conversion after it).
 
+Note: YAML also provides a way to insert whole chunks of content using `<<` (e.g. `<<: *reference`). You can even use an Array to insert multiple references `<<: [ *batch_data, *whitelist ]`
+
 ```yaml
 my_json:
   # Value is { "bar": "baz", "qux": "qiz" }
