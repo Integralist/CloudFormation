@@ -1,0 +1,48 @@
+Parameters:
+  S3BucketArn:
+    Description: "S3 Bucket ARN"
+    Type: "String"
+
+Resources:
+  User:
+    Type: "AWS::IAM::User"
+
+    Properties:
+      Policies:
+      - PolicyName: "S3-Access"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action: "s3:*"
+            Resource:
+            - Fn::Join:
+              - ""
+              -
+                - Ref: "S3BucketArn"
+                - "/news-jenkins-registry/*"
+          - Effect: "Allow"
+            Resource: "arn:aws:s3:::*"
+            Action:
+            - "s3:ListBucket"
+            - "s3:ListAllMyBuckets"
+            - "s3:GetBucketLocation"
+            - "s3:ListBucketMultipartUploads"
+
+  UserKey:
+    Type: "AWS::IAM::AccessKey"
+
+    Properties:
+      Status: "Active"
+      UserName:
+        Ref: "User"
+
+Outputs:
+  AccessKey:
+    Value:
+      Ref: "UserKey"
+  SecretKey:
+    Value:
+      Fn::GetAtt:
+        - "UserKey"
+        - "SecretAccessKey"
