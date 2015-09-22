@@ -77,6 +77,12 @@ ruby -rjson -ryaml -e "puts JSON.generate(YAML.load_file('EC2.yml'))" | json_pp
 cat EC2.yml | ruby -rjson -ryaml -e "puts YAML.load(STDIN.read).to_json" | json_pp
 ```
 
+## Convert JSON into YAML
+
+```sh
+bbc-cosmos-tools stack generate news-council-renderer --project news-council --env int --stack main | tail -n +10 | ruby -ryaml -rjson -e 'puts YAML.dump(JSON.parse(STDIN.read))' | pbcopy
+```
+
 ## YAML Features
 
 YAML provides a couple of features to help reduce complexity and duplication.
