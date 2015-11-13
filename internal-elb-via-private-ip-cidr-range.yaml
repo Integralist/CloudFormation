@@ -1,0 +1,227 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+    Environment:
+        Type: "String"
+    ImageId:
+        Type: "String"
+    VpcId:
+        Type: "String"
+    KeyName:
+        Type: "String"
+    BastionAccessSecurityGroup:
+        Type: "String"
+    PublicSubnet1Id:
+        Type: "String"
+    PublicSubnet2Id:
+        Type: "String"
+    PublicSubnet3Id:
+        Type: "String"
+    PrivateSubnet1Id:
+        Type: "String"
+    PrivateSubnet2Id:
+        Type: "String"
+    PrivateSubnet3Id:
+        Type: "String"
+    S3BucketArn:
+        Type: "String"
+    DataDirectory:
+        Type: "String"
+    DomainNameBase:
+        Type: "String"
+    CnameEntry:
+        Type: "String"
+
+Resources:
+    ComponentLaunchConfiguration:
+        Type: "AWS::AutoScaling::LaunchConfiguration"
+        Properties:
+            ImageId: { Ref: "ImageId" }
+            InstanceType: "m3.medium"
+            KeyName: { Ref: "KeyName" }
+            IamInstanceProfile: { Ref: "InstanceProfile" }
+            SecurityGroups:
+                - { Ref: "ComponentSecurityGroup" }
+                - { Ref: "BastionAccessSecurityGroup" }
+
+    InstanceProfile:
+        Type: "AWS::IAM::InstanceProfile"
+        Properties:
+            Path: "/"
+            Roles: [{ Ref: "GemstoreRole" }]
+
+    ComponentAutoScalingGroup:
+        Type: "AWS::AutoScaling::AutoScalingGroup"
+        UpdatePolicy:
+            AutoScalingRollingUpdate: {}
+        Properties:
+            MinSize: 1
+            MaxSize: 1
+            LaunchConfigurationName: { Ref: "ComponentLaunchConfiguration" }
+            LoadBalancerNames:
+                - { Ref: "ComponentLoadBalancer" }
+                - { Ref: "ComponentLoadBalancerInternal" }
+            VPCZoneIdentifier:
+                - { Ref: "PrivateSubnet1Id" }
+                - { Ref: "PrivateSubnet2Id" }
+                - { Ref: "PrivateSubnet3Id" }
+            Tags:
+                - Key: "BBCProject"
+                  Value: "Responsive-News"
+                  PropagateAtLaunch: true
+                - Key: "BBCComponent"
+                  Value: "gemstore"
+                  PropagateAtLaunch: true
+                - Key: "BBCEnvironment"
+                  Value: { Ref: "Environment" }
+                  PropagateAtLaunch: true
+   
+    ComponentLoadBalancerSecurityGroup:
+        Type: "AWS::EC2::SecurityGroup"
+        Properties:
+            GroupDescription: "ELB"
+            SecurityGroupIngress:
+                - FromPort: 443
+                  ToPort: 443
+                  IpProtocol: "tcp"
+                  CidrIp: "0.0.0.0/0"
+            VpcId: { Ref: "VpcId" }
+
+    ComponentLoadBalancerInternalSecurityGroup:
+        Type: "AWS::EC2::SecurityGroup"
+        Properties:
+            GroupDescription: "ELB"
+            SecurityGroupIngress:
+                - FromPort: 80
+                  ToPort: 80
+                  IpProtocol: "tcp"
+                  CidrIp: "10.6.0.0/16"
+            VpcId: { Ref: "VpcId" }
+
+    ComponentLoadBalancer:
+        Type: "AWS::ElasticLoadBalancing::LoadBalancer"
+        Properties:
+            HealthCheck:
+                HealthyThreshold: 3
+                Interval: "15"
+                Target: "TCP:7443"
+                Timeout: "10"
+                UnhealthyThreshold: "3"
+            Listeners:
+                - InstancePort: 7443
+                  LoadBalancerPort: 443
+                  Protocol: "tcp"
+            Subnets:
+                - { Ref: "PublicSubnet1Id" }
+                - { Ref: "PublicSubnet2Id" }
+                - { Ref: "PublicSubnet3Id" }
+            SecurityGroups:
+                - { Ref: "ComponentLoadBalancerSecurityGroup" }
+
+    ComponentLoadBalancerInternal:
+        Type: "AWS::ElasticLoadBalancing::LoadBalancer"
+        Properties:
+            HealthCheck:
+                HealthyThreshold: 3
+                Interval: "15"
+                Target: "TCP:8081"
+                Timeout: "10"
+                UnhealthyThreshold: "3"
+            Listeners:
+                - InstancePort: 8081
+                  LoadBalancerPort: 80
+                  Protocol: "http"
+            Subnets:
+                - { Ref: "PrivateSubnet1Id" }
+                - { Ref: "PrivateSubnet2Id" }
+                - { Ref: "PrivateSubnet3Id" }
+            SecurityGroups:
+                - { Ref: "ComponentLoadBalancerInternalSecurityGroup" }
+            Scheme: "internal"
+
+    BackupPolicy:
+        Type: "AWS::IAM::Policy"
+        Properties:
+            PolicyName: "S3Backups"
+            Roles:
+                - { Ref: "GemstoreRole" }
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - "s3:GetObject"
+                          - "s3:GetBucketLocation"
+                          - "s3:PutObject"
+                          - "s3:DeleteObject"
+                          - "s3:ListBucket"
+                      Resource:
+                          - Fn::Join:
+                              - ""
+                              -
+                                  - { Ref: "S3BucketArn" }
+                                  - "/"
+                                  - { Ref: "DataDirectory" }
+                                  - "/"
+                                  - { Ref: "Environment" }
+                                  - "/*"
+                      Effect: "Allow"
+                    - Action:
+                        - "s3:GetBucketLocation"
+                        - "s3:GetBucketNotification"
+                        - "s3:GetObject"
+                        - "s3:ListBucket"
+                        - "s3:ListBucketMultipartUploads"
+                        - "s3:ListMultipartUploadParts"
+                      Resource:
+                          - { Ref: "S3BucketArn" }
+                      Effect: "Allow"
+                    - Action:
+                          - "ec2:Describe*"
+                          - "cloudformation:Describe*"
+                      Resource: [ "*" ]
+                      Effect: "Allow"
+
+    GemstoreRole:
+        Type: "AWS::IAM::Role"
+
+        Properties:
+            Path: "/"
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: [ "sts:AssumeRole" ]
+                      Effect: "Allow"
+                      Principal:
+                          Service: ["ec2.amazonaws.com"]
+
+    ComponentSecurityGroup:
+        Type: "AWS::EC2::SecurityGroup"
+        Properties:
+            GroupDescription: "Nexus"
+            SecurityGroupIngress:
+                - FromPort: 7443
+                  ToPort: 7443
+                  IpProtocol: "tcp"
+                  SourceSecurityGroupId: { Ref: "ComponentLoadBalancerSecurityGroup" }
+                - FromPort: 8081
+                  ToPort: 8081
+                  IpProtocol: "tcp"
+                  SourceSecurityGroupId: { Ref: "ComponentLoadBalancerInternalSecurityGroup" }
+
+            VpcId: { Ref: "VpcId" }
+
+    ComponentDNS:
+        Type: "AWS::Route53::RecordSet"
+        Properties:
+            HostedZoneName: { Ref: "DomainNameBase" }
+            ResourceRecords:
+                - "Fn::GetAtt":
+                    - "ComponentLoadBalancer"
+                    - "DNSName"
+            Type: "CNAME"
+            Name:
+                "Fn::Join":
+                    - "."
+                    -
+                        - { Ref: "CnameEntry" }
+                        - { Ref: "DomainNameBase" }
+            TTL: 60
