@@ -132,38 +132,63 @@ Resources:
 # replication.yaml
 ---
   Parameters:
-    CacheParameterGroupName:
-      Type: "String"
-    VpcSecurityGroupIds:
-      Type: "String"
     CacheNodeType:
       Type: "String"
     CacheSubnetGroupName:
       Type: "String"
+    ElasticacheComponentSecurityGroup:
+      Type: "String"
     NumCacheClusters:
+      Type: "String"
+    PrivateSubnet1Id:
+      Type: "String"
+    PrivateSubnet2Id:
+      Type: "String"
+    PrivateSubnet3Id:
+      Type: "String"
+    PublicSubnet1Id:
+      Type: "String"
+    PublicSubnet2Id:
+      Type: "String"
+    PublicSubnet3Id:
       Type: "String"
     ReplicationGroupDescription:
       Type: "String"
 
   Resources:
+    CacheSubnetGroup:
+      Type: "AWS::ElastiCache::SubnetGroup"
+      Properties:
+        Description:
+          Ref: CacheSubnetGroupName
+        SubnetIds:
+          -
+            Ref: PrivateSubnet1Id
+          -
+            Ref: PrivateSubnet2Id
+          -
+            Ref: PrivateSubnet3Id
+          -
+            Ref: PublicSubnet1Id
+          -
+            Ref: PublicSubnet2Id
+          -
+            Ref: PublicSubnet3Id
     ServiceReplicationGroup:
       Type: "AWS::ElastiCache::ReplicationGroup"
       Properties:
-        AutomaticFailoverEnabled: true
+        AutomaticFailoverEnabled: false
         CacheNodeType:
           Ref: CacheNodeType
-        CacheParameterGroupName:
-          Ref: CacheParameterGroupName
         CacheSubnetGroupName:
-          Ref: CacheSubnetGroupName
+          Ref: CacheSubnetGroup
         Engine: "redis"
         EngineVersion: "2.8.21"
         NumCacheClusters:
           Ref: NumCacheClusters
         Port: 6379
-        SnapshotRetentionLimit: 1
         ReplicationGroupDescription:
           Ref: ReplicationGroupDescription
         SecurityGroupIds:
           -
-            Ref: VpcSecurityGroupIds
+            Ref: ElasticacheComponentSecurityGroup
