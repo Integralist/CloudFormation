@@ -1,9 +1,16 @@
 # redis-security-group.yaml
 AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
+  BastionAccessSecurityGroup:
+    Type: "String"
+  Environment:
+    Type: "String"
+  ImageId:
+    Type: "String"
+  KeyName:
+    Type: "String"
   VpcId:
     Type: "String"
-    Default: "vpc-ab123c4d"
 
 Resources:
   RedisSecurityGroup:
@@ -27,32 +34,89 @@ Resources:
         Ref: "VpcId"
 
 #################################################################################
+# main.yaml (need to have Redis Security Group)
+  ComponentLaunchConfiguration:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      KeyName:
+        Ref: "KeyName"
+      SecurityGroups:
+        -
+          Ref: "BastionAccessSecurityGroup"
+        -
+          Ref: "ComponentSecurityGroup"
+        -
+          Ref: "RedisSecurityGroup"
+      InstanceType:
+        Ref: "InstanceType"
+      IamInstanceProfile:
+        Ref: "ComponentInstanceProfile"
+      ImageId:
+        Ref: "ImageId"
+
+#################################################################################
 # elasticache.yaml
 ---
   Parameters:
-    VpcSecurityGroupIds:
+    PrivateSubnet1Id:
       Type: "String"
-    CacheParameterGroupName:
+    PrivateSubnet2Id:
+      Type: "String"
+    PrivateSubnet3Id:
+      Type: "String"
+    PublicSubnet1Id:
+      Type: "String"
+    PublicSubnet2Id:
+      Type: "String"
+    PublicSubnet3Id:
+      Type: "String"
+    BastionAccessSecurityGroup:
+      Type: "String"
+    ClusterName:
       Type: "String"
     CacheNodeType:
       Type: "String"
     CacheSubnetGroupName:
       Type: "String"
-    ClusterName:
+    ElasticacheComponentSecurityGroup:
+      Type: "String"
+    Environment:
+      Type: "String"
+    ImageId:
+      Type: "String"
+    KeyName:
       Type: "String"
     NumCacheNodes:
       Type: "String"
+    VpcId:
+      Type: "String"
 
   Resources:
+    CacheSubnetGroup:
+      Type: "AWS::ElastiCache::SubnetGroup"
+      Properties:
+        Description:
+          Ref: CacheSubnetGroupName
+        SubnetIds:
+          -
+            Ref: PrivateSubnet1Id
+          -
+            Ref: PrivateSubnet2Id
+          -
+            Ref: PrivateSubnet3Id
+          -
+            Ref: PublicSubnet1Id
+          -
+            Ref: PublicSubnet2Id
+          -
+            Ref: PublicSubnet3Id
     ServiceComponentElasticache:
       Type: "AWS::ElastiCache::CacheCluster"
       Properties:
         CacheNodeType:
           Ref: CacheNodeType
-        CacheParameterGroupName:
-          Ref: CacheParameterGroupName
         CacheSubnetGroupName:
-          Ref: CacheSubnetGroupName
+          Ref: CacheSubnetGroup
         ClusterName:
           Ref: ClusterName
         Engine: "redis"
@@ -62,7 +126,7 @@ Resources:
         SnapshotRetentionLimit: 1
         VpcSecurityGroupIds:
           -
-            Ref: "VpcSecurityGroupIds"
+            Ref: ElasticacheComponentSecurityGroup
 
 #################################################################################
 # replication.yaml
