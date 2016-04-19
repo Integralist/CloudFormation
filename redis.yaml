@@ -1,0 +1,105 @@
+# redis-security-group.yaml
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  VpcId:
+    Type: "String"
+    Default: "vpc-ab123c4d"
+
+Resources:
+  RedisSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId:
+        Ref: "VpcId"
+      GroupDescription: "A component security group allowing access only to redis"
+  ElasticacheComponentSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Elasticache security group"
+      SecurityGroupIngress:
+        -
+          IpProtocol: "tcp"
+          FromPort: "6379"
+          ToPort: "6379"
+          SourceSecurityGroupId:
+            Ref: RedisSecurityGroup
+      VpcId:
+        Ref: "VpcId"
+
+#################################################################################
+# elasticache.yaml
+---
+  Parameters:
+    VpcSecurityGroupIds:
+      Type: "String"
+    CacheParameterGroupName:
+      Type: "String"
+    CacheNodeType:
+      Type: "String"
+    CacheSubnetGroupName:
+      Type: "String"
+    ClusterName:
+      Type: "String"
+    NumCacheNodes:
+      Type: "String"
+
+  Resources:
+    ServiceComponentElasticache:
+      Type: "AWS::ElastiCache::CacheCluster"
+      Properties:
+        CacheNodeType:
+          Ref: CacheNodeType
+        CacheParameterGroupName:
+          Ref: CacheParameterGroupName
+        CacheSubnetGroupName:
+          Ref: CacheSubnetGroupName
+        ClusterName:
+          Ref: ClusterName
+        Engine: "redis"
+        EngineVersion: "2.8.21"
+        NumCacheNodes:
+          Ref: NumCacheNodes
+        SnapshotRetentionLimit: 1
+        VpcSecurityGroupIds:
+          -
+            Ref: "VpcSecurityGroupIds"
+
+#################################################################################
+# replication.yaml
+---
+  Parameters:
+    CacheParameterGroupName:
+      Type: "String"
+    VpcSecurityGroupIds:
+      Type: "String"
+    CacheNodeType:
+      Type: "String"
+    CacheSubnetGroupName:
+      Type: "String"
+    NumCacheClusters:
+      Type: "String"
+    ReplicationGroupDescription:
+      Type: "String"
+
+  Resources:
+    ServiceReplicationGroup:
+      Type: "AWS::ElastiCache::ReplicationGroup"
+      Properties:
+        AutomaticFailoverEnabled: true
+        CacheNodeType:
+          Ref: CacheNodeType
+        CacheParameterGroupName:
+          Ref: CacheParameterGroupName
+        CacheSubnetGroupName:
+          Ref: CacheSubnetGroupName
+        Engine: "redis"
+        EngineVersion: "2.8.21"
+        NumCacheClusters:
+          Ref: NumCacheClusters
+        Port: 6379
+        SnapshotRetentionLimit: 1
+        ReplicationGroupDescription:
+          Ref: ReplicationGroupDescription
+        SecurityGroupIds:
+          -
+            Ref: VpcSecurityGroupIds
