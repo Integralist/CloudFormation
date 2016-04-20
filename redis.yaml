@@ -58,18 +58,6 @@ Resources:
 # elasticache.yaml
 ---
   Parameters:
-    PrivateSubnet1Id:
-      Type: "String"
-    PrivateSubnet2Id:
-      Type: "String"
-    PrivateSubnet3Id:
-      Type: "String"
-    PublicSubnet1Id:
-      Type: "String"
-    PublicSubnet2Id:
-      Type: "String"
-    PublicSubnet3Id:
-      Type: "String"
     BastionAccessSecurityGroup:
       Type: "String"
     ClusterName:
@@ -87,6 +75,18 @@ Resources:
     KeyName:
       Type: "String"
     NumCacheNodes:
+      Type: "String"
+    PrivateSubnet1Id:
+      Type: "String"
+    PrivateSubnet2Id:
+      Type: "String"
+    PrivateSubnet3Id:
+      Type: "String"
+    PublicSubnet1Id:
+      Type: "String"
+    PublicSubnet2Id:
+      Type: "String"
+    PublicSubnet3Id:
       Type: "String"
     VpcId:
       Type: "String"
@@ -110,11 +110,21 @@ Resources:
             Ref: PublicSubnet2Id
           -
             Ref: PublicSubnet3Id
+    DefaultParametersGroup:
+      Type: "AWS::ElastiCache::ParameterGroup"
+      Properties:
+        CacheParameterGroupFamily: "redis2.8"
+        Description: "Modifications to support better performance"
+        Properties:
+          tcp-keepalive: 60
+          timeout: 900
     ServiceComponentElasticache:
       Type: "AWS::ElastiCache::CacheCluster"
       Properties:
         CacheNodeType:
           Ref: CacheNodeType
+        CacheParameterGroupName:
+          Ref: DefaultParametersGroup
         CacheSubnetGroupName:
           Ref: CacheSubnetGroup
         ClusterName:
@@ -174,12 +184,22 @@ Resources:
             Ref: PublicSubnet2Id
           -
             Ref: PublicSubnet3Id
+    DefaultParametersGroup:
+      Type: "AWS::ElastiCache::ParameterGroup"
+      Properties:
+        CacheParameterGroupFamily: "redis2.8"
+        Description: "Modifications to support better performance"
+        Properties:
+          tcp-keepalive: 60
+          timeout: 900
     ServiceReplicationGroup:
       Type: "AWS::ElastiCache::ReplicationGroup"
       Properties:
         AutomaticFailoverEnabled: false
         CacheNodeType:
           Ref: CacheNodeType
+        CacheParameterGroupName:
+          Ref: DefaultParametersGroup
         CacheSubnetGroupName:
           Ref: CacheSubnetGroup
         Engine: "redis"
