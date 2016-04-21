@@ -67,8 +67,7 @@
                 "dynamodb:UpdateTable"
             ],
             "Resource": [
-                "arn:aws:dynamodb:eu-west-1:755368653476:table/*-election-2016-resources-main-Election2016*DynamoDBTable-*",
-                "arn:aws:dynamodb:eu-west-1:755368653476:table/*-general-election-2015-resources-main-GeneralElectionRenderer*DynamoDBTable-*"
+                "arn:aws:dynamodb:eu-west-1:123:table/*-beep*boop-*"
             ]
         },
         {
@@ -87,7 +86,7 @@
                 "s3:List*"
             ],
             "Resource": [
-                "arn:aws:s3:::shared-application-buckets-private-120ps2x0gz4fj"
+                "arn:aws:s3:::foo"
             ]
         },
         {
@@ -102,9 +101,9 @@
                 "s3:PutObjectVersionAcl"
             ],
             "Resource": [
-                "arn:aws:s3:::shared-application-buckets-private-120ps2x0gz4fj/election-2016-data/*",
-                "arn:aws:s3:::shared-application-buckets-private-120ps2x0gz4fj/general-election-2015-data/*",
-                "arn:aws:s3:::shared-application-buckets-private-120ps2x0gz4fj/news-politics-data/*"
+                "arn:aws:s3:::foo/bar/*",
+                "arn:aws:s3:::foo/baz/*",
+                "arn:aws:s3:::foo/qux/*"
             ]
         },
         {
@@ -115,7 +114,7 @@
                 "sqs:ListQueues"
             ],
             "Resource": [
-                "arn:aws:sqs:eu-west-1:755368653476:*"
+                "arn:aws:sqs:eu-west-1:123:*"
             ]
         },
         {
@@ -131,7 +130,7 @@
                 "sqs:SetQueueAttributes"
             ],
             "Resource": [
-                "arn:aws:sqs:eu-west-1:755368653476:*-news-politics-resources-main-*"
+                "arn:aws:sqs:eu-west-1:123:*-foobar-*"
             ]
         },
         {
@@ -169,7 +168,7 @@
                 "cloudformation:PreviewStackUpdate"
             ],
             "Effect": "Allow",
-            "Resource": "arn:aws:cloudformation:eu-west-1:755368653476:stack/*-election-*/*"
+            "Resource": "arn:aws:cloudformation:eu-west-1:123:stack/*-foobar-*/*"
         },
         {
             "Sid": "AllowASGSuspendingProcessesForWorkingAroundScheduledScalingConflicting",
