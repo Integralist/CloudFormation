@@ -1,0 +1,193 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowBasicAccessToElastiCache",
+            "Effect": "Allow",
+            "Action": [
+                "elasticache:DescribeCacheClusters",
+                "elasticache:DescribeCacheEngineVersions",
+                "elasticache:DescribeCacheParameterGroups",
+                "elasticache:DescribeCacheParameters",
+                "elasticache:DescribeCacheSecurityGroups",
+                "elasticache:DescribeCacheSubnetGroups",
+                "elasticache:DescribeEngineDefaultParameters",
+                "elasticache:DescribeEvents",
+                "elasticache:DescribeReplicationGroups",
+                "elasticache:DescribeReservedCacheNodes",
+                "elasticache:DescribeReservedCacheNodesOfferings",
+                "elasticache:DescribeSnapshots",
+                "elasticache:ListTagsForResource"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "AllowBasicAccessToCloudWatch",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:DescribeAlarmHistory",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:DescribeAlarmsForMetric",
+                "cloudwatch:GetMetricData",
+                "cloudwatch:GetMetricStatistics",
+                "cloudwatch:ListMetrics",
+                "cloudwatch:PutMetricData"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "AllowBasicAccessToDynamoDB",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:ListTables",
+                "dynamodb:DescribeTable"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "AllowBasicModificationsToDynamoDB",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:GetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:PutItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:UpdateItem",
+                "dynamodb:UpdateTable"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:eu-west-1:755368653476:table/*-election-2016-resources-main-Election2016*DynamoDBTable-*",
+                "arn:aws:dynamodb:eu-west-1:755368653476:table/*-general-election-2015-resources-main-GeneralElectionRenderer*DynamoDBTable-*"
+            ]
+        },
+        {
+            "Sid": "AllowBasicAccessToS3Buckets",
+            "Effect": "Allow",
+            "Action": "s3:ListAllMyBuckets",
+            "Resource": [
+                "arn:aws:s3:::*"
+            ]
+        },
+        {
+            "Sid": "AllowBasicAccessToS3Objects",
+            "Effect": "Allow",
+            "Action": [
+                "s3:Get*",
+                "s3:List*"
+            ],
+            "Resource": [
+                "arn:aws:s3:::shared-application-buckets-private-120ps2x0gz4fj"
+            ]
+        },
+        {
+            "Sid": "AllowBasicModificationsToS3",
+            "Effect": "Allow",
+            "Action": [
+                "s3:Get*",
+                "s3:List*",
+                "s3:DeleteObject",
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:PutObjectVersionAcl"
+            ],
+            "Resource": [
+                "arn:aws:s3:::shared-application-buckets-private-120ps2x0gz4fj/election-2016-data/*",
+                "arn:aws:s3:::shared-application-buckets-private-120ps2x0gz4fj/general-election-2015-data/*",
+                "arn:aws:s3:::shared-application-buckets-private-120ps2x0gz4fj/news-politics-data/*"
+            ]
+        },
+        {
+            "Sid": "AllowBasicAccessToSQSQueues",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:ListDeadLetterSourceQueues",
+                "sqs:ListQueues"
+            ],
+            "Resource": [
+                "arn:aws:sqs:eu-west-1:755368653476:*"
+            ]
+        },
+        {
+            "Sid": "AllowBasicModificationsToSQS",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+                "sqs:PurgeQueue",
+                "sqs:ReceiveMessage",
+                "sqs:SendMessage",
+                "sqs:SendMessageBatch",
+                "sqs:SetQueueAttributes"
+            ],
+            "Resource": [
+                "arn:aws:sqs:eu-west-1:755368653476:*-news-politics-resources-main-*"
+            ]
+        },
+        {
+            "Sid": "CliAccessToAllowFilteringOfRendererInstanceIPs",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeInstances"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "AllowBasicAccessToCloudFormation",
+            "Action": [
+                "cloudformation:ListStackResources",
+                "cloudformation:ListStacks",
+                "cloudformation:ValidateTemplate"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowBasicModificationsToCloudFormation",
+            "Action": [
+                "cloudformation:CancelUpdateStack",
+                "cloudformation:DescribeAccountLimits",
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:DescribeStackResource",
+                "cloudformation:DescribeStackResources",
+                "cloudformation:DescribeStacks",
+                "cloudformation:GetStackPolicy",
+                "cloudformation:GetTemplate",
+                "cloudformation:GetTemplateSummary",
+                "cloudformation:PreviewStackUpdate"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:cloudformation:eu-west-1:755368653476:stack/*-election-*/*"
+        },
+        {
+            "Sid": "AllowASGSuspendingProcessesForWorkingAroundScheduledScalingConflicting",
+            "Action": [
+                "autoscaling:SuspendProcesses",
+                "autoscaling:ResumeProcesses"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowDailyRehearsalsScaling",
+            "Action": [
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:SetDesiredCapacity"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}
